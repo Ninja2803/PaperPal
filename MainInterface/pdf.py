@@ -394,19 +394,25 @@ class open_bookmark(QDialog):
         # Get the current directory
         filepath = os.path.join(self.current_dir, filename)
         # Open the file in read mode
-        with open(filepath, "r",encoding="utf-8") as file:
-            # Read each line from the file
-            for line in file:
-                # Split the line into bookmark details
-                bookmark_name, page_number, notes,word = line.strip().split(';')
-                page_number = int(page_number)
-                # Replace placeholder with newline character
-                notes = notes.replace('<br>', '\n')
-                word = word.replace('<br>', '\n')
-                # Create bookmark object
-                bookmark = Data_Bookmark(bookmark_name, page_number, notes, word)
-                # Add bookmark to the table
-                self.add_bookmark_to_table(bookmark)
+        try:
+            with open(filepath, "r+",encoding="utf-8") as file:
+                # Read each line from the file
+                for line in file:
+                    # Split the line into bookmark details
+                    bookmark_name, page_number, notes,word = line.strip().split(';')
+                    page_number = int(page_number)
+                    # Replace placeholder with newline character
+                    notes = notes.replace('<br>', '\n')
+                    word = word.replace('<br>', '\n')
+                    # Create bookmark object
+                    bookmark = Data_Bookmark(bookmark_name, page_number, notes, word)
+                    # Add bookmark to the table
+                    self.add_bookmark_to_table(bookmark)
+
+        except FileNotFoundError:
+            # If the file doesn't exist, create it
+            with open(filepath, "w", encoding="utf-8"):
+                pass  # Do nothing, file created
 
 
     def get_selected_bookmark(self):
