@@ -21,8 +21,7 @@ from PySide6.QtCore import Qt, QTimer # Added QTextCursor import
 import fitz
 import extra_functions
 from PySide6 import QtGui,QtWidgets
-from PySide6.QtGui import QTextBlockFormat, QFont, QTextCursor 
-
+from PySide6.QtGui import QTextBlockFormat, QFont, QTextCursor ,QTextCharFormat,QColor
 class CustomButton(QPushButton):
     def __init__(self, label):
         super().__init__()
@@ -98,15 +97,14 @@ class PDFView(QWidget):
         # Set cursor position to the beginning of the text
         self.text_edit.moveCursor(QtGui.QTextCursor.Start)
 
-    def setup_ui(self):
+    def setup_ui(self): #UI Layout Function
         self.text_edit.setReadOnly(True)
         layout = QVBoxLayout(self)
         layout.addWidget(self.text_edit)
 
     def get_selected_text(self):
         return self.text_edit.textCursor().selectedText()
-
-
+    
 class InfoLabel(QWidget):
     def __init__(self):
         super().__init__()
@@ -131,7 +129,17 @@ class ButtonHolder(QWidget):
 
         self.synonym_button = CustomButton("Synonym")
         self.synonym_button.clicked.connect(self.on_synonym_button_clicked)
+        
+        # Creating the zoom in button 
+        self.zoomInButton = CustomButton("+")
+        self.zoomInButton.clicked.connect(self.zoomIn)
+        self.zoomInButton.setFixedSize(60,40) # Defining the size of the button
 
+        # Creating the zoom out button 
+        self.zoomOutButton = CustomButton("-")
+        self.zoomOutButton.clicked.connect(self.zoomOut)
+        self.zoomOutButton.setFixedSize(60,40) # Defining the size of the button
+    
         self.speech_button = CustomButton("Read Aloud")
         self.speech_button.clicked.connect(self.on_speech_button_clicked)
         
@@ -176,9 +184,31 @@ class ButtonHolder(QWidget):
         self.go_to_bookmark_button= CustomButton("Go to Bookmark")
         self.go_to_bookmark_button.clicked.connect(self.go_to_bookmark)
 
+        # Creating a highlight button 
+        self.highlight = CustomButton('Highlight')
+        self.highlight.clicked.connect(self.highlight_text)
+
+
+        # Loading the highlights done in the previous session 
+        self.load_highlighted_text()
+
+        # Creating a remove highlighting button 
+        self.remove = CustomButton('Clear')
+        self.remove.clicked.connect(self.remove_text)
+
         self.navigate_layout=QHBoxLayout()
         self.navigate_layout.addWidget(self.prev_button)
         self.navigate_layout.addWidget(self.next_button)
+
+        # Creating the layout for zooming buttons
+        self.zoom = QHBoxLayout()
+        self.zoom.addWidget(self.zoomInButton)
+        self.zoom.addWidget(self.zoomOutButton)
+
+        # Creating the border for the zooming button layout
+        self.border = QWidget()
+        self.border.setLayout(self.zoom)
+        self.border.setStyleSheet("QWidget { border: 2px solid red; }")
 
         self.search_results = []
         self.search_result=[]
@@ -196,6 +226,10 @@ class ButtonHolder(QWidget):
         self.container.addLayout(self.navigate_layout)
         self.container.addWidget(self.add_bookmark_button)
         self.container.addWidget(self.go_to_bookmark_button)
+        self.container.addWidget(self.border) # Adding the border for the zooming buttons
+        self.container.addLayout(self.zoom) # Adding the layout for the zooming buttons
+        self.container.addWidget(self.highlight) # Adding the highlighting button
+        self.container.addWidget(self.remove) # Adding the remove highlighting button
         self.container.addWidget(self.close_button)
         self.container.addItem(QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding))
         self.setLayout(self.container)
@@ -223,6 +257,68 @@ class ButtonHolder(QWidget):
             self.main_window.start_auto_scroll()
         else:
             self.main_window.stop_auto_scroll()
+    
+    def zoomIn(self):
+        font = self.main_window.pdf_view.text_edit.font() 
+        font_size = font.pointSize() # Getting the font size
+        font.setPointSize(font_size + 1) # Increasing the font size for zooming In
+        self.main_window.pdf_view.text_edit.setFont(font) # Applying the changes
+
+    def zoomOut(self):
+        font = self.main_window.pdf_view.text_edit.font()
+        font_size = font.pointSize() # Getting the font size
+        font.setPointSize(font_size - 1) # Increasing the font size for zooming out
+        self.main_window.pdf_view.text_edit.setFont(font) # Applying the changes
+    
+    def highlight_text(self):
+        selected_text = self.main_window.pdf_view.get_selected_text() # Getting the selected text
+        if selected_text:
+            # Get the current page number based on the cursor position
+            cursor = self.main_window.pdf_view.text_edit.textCursor() # Creating a cursor to navigate the document
+            format = QTextCharFormat() # Creating a format to apply on the text
+            format.setBackground(QColor("red")) 
+            cursor.mergeCharFormat(format) # Applying the formating on the selected text
+            file_path = "highlights.txt"
+            L = [] # Appending the details in a list 
+            L.append([selected_text])
+            file_path = "highlights.txt"  # Save highlights to a text file
+            with open(file_path, "w") as file:
+                for i in L:
+                    file.write(",".join(map(str, i)) + "\n")
+        else:
+            QMessageBox.information(self,"No Text selected ","Select a portion of the document") # Prompting the user to select some text
+
+
+    def remove_text(self):
+        selected_text = self.main_window.pdf_view.get_selected_text() # Getting the selected text
+        if selected_text:
+            # Get the current page number based on the cursor position
+            cursor = self.main_window.pdf_view.text_edit.textCursor() # Creating a cursor to navigate the document
+            format = QTextCharFormat() # Creating the default format to apply on the text
+            format.setBackground(QColor("Transparent"))   
+            cursor.mergeCharFormat(format) # Applying the formating on the selected text
+        else:
+            QMessageBox.information(self,"No Text selected ","Select a portion of the document") # Prompting the user to select some text
+
+    def load_highlighted_text(self):
+        try:
+            # Reading the file in which highlights are stored and appending to a list
+            loaded_highlights = []
+            file_path = "highlights.txt"
+            with open(file_path, "r") as file:
+                for line in file:
+                    loaded_highlights.append(list(map(str.strip, line.split(","))))
+            # Reading the list and applying the formating 
+            for i in loaded_highlights:
+                selected_text = i[0]
+                cursor = self.main_window.pdf_view.text_edit.textCursor() # Creating a cursor to navigate the document
+                color = "red"
+                format = QTextCharFormat() # Creating the default format to apply on the text
+                format.setBackground(QColor(color))
+                cursor = self.main_window.pdf_view.text_edit.document().find(selected_text, cursor) # Moving the cursor the location of selected text
+                cursor.mergeCharFormat(format)
+        except FileNotFoundError:
+            pass  # No highlighted text information available
 
     def on_speed_changed(self, value):
         self.main_window.set_auto_scroll_speed(value)
