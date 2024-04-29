@@ -275,16 +275,23 @@ class ButtonHolder(QWidget):
         if selected_text:
             # Get the current page number based on the cursor position
             cursor = self.main_window.pdf_view.text_edit.textCursor() # Creating a cursor to navigate the document
+            start_index = cursor.selectionStart()
+            end_index = cursor.selectionEnd()
+            color = "red"
+             # Creating a cursor to navigate the document
             format = QTextCharFormat() # Creating a format to apply on the text
             format.setBackground(QColor("red")) 
             cursor.mergeCharFormat(format) # Applying the formating on the selected text
             file_path = "highlights.txt"
-            L = [] # Appending the details in a list 
-            L.append([selected_text])
+            L = [] # Appending the details in a list
+            L.append([start_index,end_index,color]) 
+            # L.extend(selected_text.split("\u2029"))
             file_path = "highlights.txt"  # Save highlights to a text file
-            with open(file_path, "w") as file:
+            with open(file_path, "a+",encoding="utf-8") as file:
                 for i in L:
-                    file.write(",".join(map(str, i)) + "\n")
+                    for j in i:
+                        file.write(str(j) +" ")
+                    file.write("\n")
         else:
             QMessageBox.information(self,"No Text selected ","Select a portion of the document") # Prompting the user to select some text
 
@@ -294,29 +301,44 @@ class ButtonHolder(QWidget):
         if selected_text:
             # Get the current page number based on the cursor position
             cursor = self.main_window.pdf_view.text_edit.textCursor() # Creating a cursor to navigate the document
+            start_index = cursor.selectionStart()
+            end_index = cursor.selectionEnd()
+            color = "Transparent" # Creating a cursor to navigate the document
             format = QTextCharFormat() # Creating the default format to apply on the text
-            format.setBackground(QColor("Transparent"))   
-            cursor.mergeCharFormat(format) # Applying the formating on the selected text
+            format.setBackground(QColor(color))   
+            cursor.mergeCharFormat(format)
+            file_path = "highlights.txt"
+            L = [] # Appending the details in a list
+            L.append([start_index,end_index,color])
+            file_path = "highlights.txt"  # Save highlights to a text file
+            with open(file_path, "a+",encoding="utf-8") as file:
+                for i in L:
+                    for j in i:
+                        file.write(str(j) +" ")
+                    file.write("\n")
         else:
             QMessageBox.information(self,"No Text selected ","Select a portion of the document") # Prompting the user to select some text
 
     def load_highlighted_text(self):
         try:
+           cursor = self.main_window.pdf_view.text_edit.textCursor()
             # Reading the file in which highlights are stored and appending to a list
             loaded_highlights = []
             file_path = "highlights.txt"
-            with open(file_path, "r") as file:
-                for line in file:
-                    loaded_highlights.append(list(map(str.strip, line.split(","))))
+            with open(file_path, "r", encoding="utf-8") as file:
+                for i in file.readlines():
+                    loaded_highlights.append(i)
             # Reading the list and applying the formating 
             for i in loaded_highlights:
-                selected_text = i[0]
-                cursor = self.main_window.pdf_view.text_edit.textCursor() # Creating a cursor to navigate the document
-                color = "red"
+                L = i.split(" ")
+                start_index = int(L[0])
+                end_index = int(L[1])
+                color = L[2]
                 format = QTextCharFormat() # Creating the default format to apply on the text
-                format.setBackground(QColor(color))
-                cursor = self.main_window.pdf_view.text_edit.document().find(selected_text, cursor) # Moving the cursor the location of selected text
-                cursor.mergeCharFormat(format)
+                format.setBackground(QColor(color)) # Moving the cursor the location of selected text
+                cursor.setPosition(start_index)
+                cursor.movePosition(QTextCursor.Right, QTextCursor.KeepAnchor, end_index - start_index)
+                cursor.setCharFormat(format)
         except FileNotFoundError:
             pass  # No highlighted text information available
 
